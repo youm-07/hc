@@ -1,0 +1,173 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Checkout</title><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Harvi Creates"><meta name="theme-color" content="#87CEEB"><link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"><link rel="stylesheet" href="order-confirm.css"></head><body>
+<nav>
+    <ul class="nav-left">
+      <li><a href="index.html"><i class="fas fa-home"></i> Home</a></li>
+      <li><a href="cart.html"><i class="fas fa-shopping-cart"></i> Cart</a></li>
+      <li><a href="about.html"><i class="fas fa-info-circle"></i> About</a></li>
+      <li><a href="order-tracking.html"><i class="fas fa-truck"></i> Track Order</a></li>
+    </ul>
+    <div class="nav-logo"><img src="logo.png" alt="Logo"></div>
+    <ul class="nav-right">
+      <li><a href="login.html"><i class="fas fa-sign-in-alt"></i> Login</a></li>
+      <li><a href="signup.html"><i class="fas fa-user-plus"></i> Sign up</a></li>
+    </ul>
+  </nav>
+<div class="form-container">
+  <h2>Checkout</h2>
+  <div id="billSummary" style="background:#f9f9f9;padding:12px;border-radius:8px;margin-bottom:12px"></div>
+  <form id="orderForm">
+    <input type="text" id="username" placeholder="Full name" required>
+    <input type="email" id="email" placeholder="Email" required>
+    <input type="tel" id="phone" placeholder="Phone" required>
+    <input type="text" id="address" placeholder="Shipping address" required>
+    <input type="text" id="city" placeholder="City" required>
+    <input type="text" id="state" placeholder="State" required>
+    <input type="text" id="pincode" placeholder="Pincode" required>
+    <textarea id="notes" placeholder="Order notes (optional)"></textarea>
+
+    <h3>Delivery Method</h3>
+    <select id="deliveryMethod" required style="width:100%;padding:8px;margin-bottom:8px">
+      <option value="normal">Normal Post (₹50)</option>
+      <option value="fast">Fast Post (₹100)</option>
+    </select>
+
+    <h3>Customization (optional)</h3>
+    <input type="text" id="customNote" placeholder="Customization e.g. add initials, colour choice">
+
+    <h3>Payment (UPI / Google Pay / Paytm)</h3>
+    <p>Scan the QR code below with your UPI app and pay the total amount. After successful payment, enter the UPI transaction ID and click "Place Order".</p>
+    <img src="qr.png" alt="UPI QR" style="max-width:200px;display:block;margin:10px 0;">
+    <input type="text" id="txid" placeholder="Payment transaction ID (from app)" required>
+
+    <div style="margin-top:12px;">
+      <button type="submit" class="order"><span class="default">Complete Order</span><span class="success">Order Placed
+    <svg viewbox="0 0 12 10">
+      <polyline points="1.5 6 4.5 9 10.5 1"></polyline>
+    </svg></span>
+  <div class="box"></div>
+  <div class="truck">
+    <div class="back"></div>
+    <div class="front">
+      <div class="window"></div>
+    </div>
+    <div class="light top"></div>
+    <div class="light bottom"></div>
+  </div>
+  <div class="lines"></div>
+</button>
+    </div>
+  </form>
+</div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="logger.js"></script>
+  <script src="loading-states.js"></script>
+  <script src="inventory-manager.js"></script>
+  <script src="payment-test.js"></script>
+<script src="auth-guard.js"></script>
+<script src="cart-guard.js"></script>
+<script>
+function getCart(){ return JSON.parse(localStorage.getItem('hc_cart')||'[]'); }
+function calcProductsTotal(cart){ let s=0; cart.forEach(it=>s+=it.price*it.qty); return s; }
+function shippingFeeFor(method){ return method === 'fast' ? 100 : 50; }
+
+function renderBill() {
+  const cart = getCart();
+  const container = document.getElementById('billSummary');
+  if(!container) return;
+  if(!cart.length){ container.innerHTML = '<p>Your cart is empty.</p>'; return; }
+  const custName = document.getElementById('username').value || 'Customer';
+  let html = `<h3>Bill Summary</h3><p><strong>${custName}</strong></p><ul>`;
+  let prodTotal = 0;
+  cart.forEach(it => {
+    const line = ` <li>${it.title} × ${it.qty} = ₹${it.price * it.qty}</li>`;
+    html += line;
+    prodTotal += it.price * it.qty;
+  });
+  const method = document.getElementById('deliveryMethod')?.value || 'normal';
+  const ship = shippingFeeFor(method);
+  const custom = document.getElementById('customNote')?.value || '';
+  const total = prodTotal + ship;
+  html += `</ul><p>Products: ₹${prodTotal}</p><p>Shipping (${method}): ₹${ship}</p>`;
+  if(custom) html += `<p>Customization: ${custom}</p>`;
+  html += `<h3>Total: ₹${total}</h3>`;
+  container.innerHTML = html;
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{
+
+  ['username','deliveryMethod','customNote'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) { el.addEventListener('input', renderBill); el.addEventListener('change', renderBill); }
+  });
+  renderBill();
+});
+
+document.getElementById('orderForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const cart = getCart();
+  if(!cart.length){ alert('Cart empty'); return; }
+  const prodTotal = calcProductsTotal(cart);
+  const deliveryMethod = document.getElementById('deliveryMethod').value;
+  const ship = shippingFeeFor(deliveryMethod);
+  const total = prodTotal + ship;
+  const data = {
+    businessName: 'Harvi Creates',
+    name: document.getElementById('username').value,
+    email: document.getElementById('email').value,
+    phone: document.getElementById('phone').value,
+    address: document.getElementById('address').value,
+    city: document.getElementById('city').value,
+    state: document.getElementById('state').value,
+    pincode: document.getElementById('pincode').value,
+    notes: document.getElementById('notes').value,
+    customization: document.getElementById('customNote').value,
+    deliveryMethod: deliveryMethod,
+    txid: document.getElementById('txid').value,
+    cart: JSON.stringify(cart),
+    total: total
+  };
+  try{
+    // Submit order using Supabase service
+    const result = await window.supabaseService.createOrder(data);
+    
+    if (result.success) {
+      alert(`Order placed successfully!\n${result.message}`);
+      localStorage.removeItem('hc_cart');
+      window.location.href = 'order-success.html';
+    } else {
+      throw new Error(result.error);
+    }
+  }catch(err){
+    alert('Failed to submit order. Please try again. Error: '+err);
+  }
+});
+</script>
+
+<script src='https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js'></script>
+<script>
+  $('.order').click(function(e) {
+    e.preventDefault(); // Prevent default form submission
+
+    let button = $(this);
+    let form = document.getElementById('orderForm');
+
+    if (!button.hasClass('animate')) {
+      // Check form validity before starting animation
+      if (form.checkValidity()) {
+        button.addClass('animate');
+        // Wait for the animation to start before submitting the form
+        setTimeout(() => {
+          // Dispatch a submit event that can be caught by the listener
+          form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+        }, 500); // Adjust delay as needed
+      } else {
+        // If the form is invalid, trigger the browser's validation UI
+        form.reportValidity();
+      }
+    }
+  });
+</script>
+</body></html>

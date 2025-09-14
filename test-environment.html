@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Harvi Creates - Testing Environment</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .test-panel {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      width: 350px;
+      background: white;
+      border: 2px solid #87CEEB;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+      z-index: 10000;
+      font-family: Arial, sans-serif;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .test-section {
+      margin-bottom: 20px;
+      padding: 15px;
+      border: 1px solid #eee;
+      border-radius: 8px;
+    }
+    .test-button {
+      background: #87CEEB;
+      color: #333;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin: 5px;
+      font-size: 14px;
+    }
+    .test-button:hover {
+      background: #6bb6d6;
+    }
+    .status-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+    .status-success { background: #4CAF50; }
+    .status-error { background: #f44336; }
+    .status-warning { background: #ff9800; }
+    .status-info { background: #2196F3; }
+  </style>
+</head>
+<body>
+  <div class="test-panel">
+    <h2 style="margin-top: 0; color: #333;">🧪 Testing Environment</h2>
+    
+    <!-- System Status -->
+    <div class="test-section">
+      <h3>System Status</h3>
+      <div id="system-status">
+        <div><span class="status-indicator status-info"></span>Loading system status...</div>
+      </div>
+      <button class="test-button" onclick="checkSystemStatus()">Refresh Status</button>
+    </div>
+
+    <!-- Database Tests -->
+    <div class="test-section">
+      <h3>Database Tests</h3>
+      <button class="test-button" onclick="testSupabaseConnection()">Test Connection</button>
+      <button class="test-button" onclick="testProductsAPI()">Test Products</button>
+      <button class="test-button" onclick="testOrdersAPI()">Test Orders</button>
+      <div id="db-results" style="margin-top: 10px; font-size: 12px;"></div>
+    </div>
+
+    <!-- Inventory Tests -->
+    <div class="test-section">
+      <h3>Inventory Management</h3>
+      <button class="test-button" onclick="testInventoryCheck()">Check Stock</button>
+      <button class="test-button" onclick="testReservation()">Test Reservation</button>
+      <div id="inventory-results" style="margin-top: 10px; font-size: 12px;"></div>
+    </div>
+
+    <!-- Payment Tests -->
+    <div class="test-section">
+      <h3>Payment Testing</h3>
+      <button class="test-button" onclick="openPaymentTester()">Open Payment Tester</button>
+      <button class="test-button" onclick="testPaymentFlow()">Test Payment Flow</button>
+      <div id="payment-results" style="margin-top: 10px; font-size: 12px;"></div>
+    </div>
+
+    <!-- Error Logs -->
+    <div class="test-section">
+      <h3>Error Monitoring</h3>
+      <button class="test-button" onclick="showErrorLogs()">View Logs</button>
+      <button class="test-button" onclick="clearLogs()">Clear Logs</button>
+      <button class="test-button" onclick="exportLogs()">Export Logs</button>
+      <div id="error-count" style="margin-top: 10px; font-size: 12px;"></div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="test-section">
+      <h3>Quick Navigation</h3>
+      <button class="test-button" onclick="window.open('index.html', '_blank')">Homepage</button>
+      <button class="test-button" onclick="window.open('cart.html', '_blank')">Cart</button>
+      <button class="test-button" onclick="window.open('checkout.html', '_blank')">Checkout</button>
+      <button class="test-button" onclick="window.open('admin.html', '_blank')">Admin</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="logger.js"></script>
+  <script src="loading-states.js"></script>
+  <script src="inventory-manager.js"></script>
+  <script src="payment-test.js"></script>
+
+  <script>
+    // Initialize testing environment
+    document.addEventListener('DOMContentLoaded', () => {
+      if (typeof initializeSupabase === 'function') {
+        initializeSupabase();
+      }
+      checkSystemStatus();
+      updateErrorCount();
+      setInterval(updateErrorCount, 5000); // Update every 5 seconds
+    });
+
+    async function checkSystemStatus() {
+      const statusDiv = document.getElementById('system-status');
+      const checks = [];
+
+      // Check Supabase
+      if (window.supabaseService) {
+        checks.push('<div><span class="status-indicator status-success"></span>Supabase: Connected</div>');
+      } else {
+        checks.push('<div><span class="status-indicator status-error"></span>Supabase: Not Connected</div>');
+      }
+
+      // Check Logger
+      if (window.logger) {
+        checks.push('<div><span class="status-indicator status-success"></span>Logger: Active</div>');
+      } else {
+        checks.push('<div><span class="status-indicator status-error"></span>Logger: Not Available</div>');
+      }
+
+      // Check Loading Manager
+      if (window.loadingManager) {
+        checks.push('<div><span class="status-indicator status-success"></span>Loading Manager: Ready</div>');
+      } else {
+        checks.push('<div><span class="status-indicator status-error"></span>Loading Manager: Not Available</div>');
+      }
+
+      // Check Inventory Manager
+      if (window.inventoryManager) {
+        checks.push('<div><span class="status-indicator status-success"></span>Inventory Manager: Ready</div>');
+      } else {
+        checks.push('<div><span class="status-indicator status-error"></span>Inventory Manager: Not Available</div>');
+      }
+
+      // Check Payment Tester
+      if (window.paymentTester) {
+        checks.push('<div><span class="status-indicator status-success"></span>Payment Tester: Ready</div>');
+      } else {
+        checks.push('<div><span class="status-indicator status-error"></span>Payment Tester: Not Available</div>');
+      }
+
+      statusDiv.innerHTML = checks.join('');
+    }
+
+    async function testSupabaseConnection() {
+      const resultsDiv = document.getElementById('db-results');
+      resultsDiv.innerHTML = 'Testing connection...';
+
+      try {
+        if (!window.supabaseService) {
+          throw new Error('Supabase service not available');
+        }
+
+        const result = await window.supabaseService.getProducts();
+        if (result.success) {
+          resultsDiv.innerHTML = `<span style="color: green;">✓ Connection successful. Found ${result.data.length} products.</span>`;
+        } else {
+          resultsDiv.innerHTML = `<span style="color: red;">✗ Connection failed: ${result.error}</span>`;
+        }
+      } catch (error) {
+        resultsDiv.innerHTML = `<span style="color: red;">✗ Error: ${error.message}</span>`;
+      }
+    }
+
+    async function testProductsAPI() {
+      const resultsDiv = document.getElementById('db-results');
+      resultsDiv.innerHTML = 'Testing products API...';
+
+      try {
+        const [products, categories] = await Promise.all([
+          window.supabaseService.getProducts(),
+          window.supabaseService.getCategories()
+        ]);
+
+        const results = [];
+        results.push(`Products: ${products.success ? '✓' : '✗'} (${products.data?.length || 0} items)`);
+        results.push(`Categories: ${categories.success ? '✓' : '✗'} (${categories.data?.length || 0} items)`);
+
+        resultsDiv.innerHTML = results.join('<br>');
+      } catch (error) {
+        resultsDiv.innerHTML = `<span style="color: red;">✗ API Test failed: ${error.message}</span>`;
+      }
+    }
+
+    async function testInventoryCheck() {
+      const resultsDiv = document.getElementById('inventory-results');
+      resultsDiv.innerHTML = 'Testing inventory system...';
+
+      try {
+        // Test with a sample product ID (assuming product ID 35 exists)
+        const availability = await window.inventoryManager.checkAvailability(35, 1);
+        
+        if (availability.available) {
+          resultsDiv.innerHTML = `<span style="color: green;">✓ Inventory check successful. Available: ${availability.availableStock}</span>`;
+        } else {
+          resultsDiv.innerHTML = `<span style="color: orange;">⚠ Product not available: ${availability.error}</span>`;
+        }
+      } catch (error) {
+        resultsDiv.innerHTML = `<span style="color: red;">✗ Inventory test failed: ${error.message}</span>`;
+      }
+    }
+
+    async function testReservation() {
+      const resultsDiv = document.getElementById('inventory-results');
+      resultsDiv.innerHTML = 'Testing reservation system...';
+
+      try {
+        const items = [{ id: 35, qty: 1 }];
+        const reservation = await window.inventoryManager.reserveItems(items);
+        
+        if (reservation.success) {
+          resultsDiv.innerHTML = `<span style="color: green;">✓ Reservation successful. ID: ${reservation.reservationId}</span>`;
+          
+          // Auto-release after 5 seconds for testing
+          setTimeout(() => {
+            window.inventoryManager.releaseReservation(reservation.reservationId);
+            resultsDiv.innerHTML += '<br><span style="color: blue;">ℹ Reservation auto-released</span>';
+          }, 5000);
+        } else {
+          resultsDiv.innerHTML = `<span style="color: red;">✗ Reservation failed: ${reservation.error}</span>`;
+        }
+      } catch (error) {
+        resultsDiv.innerHTML = `<span style="color: red;">✗ Reservation test failed: ${error.message}</span>`;
+      }
+    }
+
+    function openPaymentTester() {
+      if (!document.getElementById('payment-test-panel')) {
+        window.paymentTester.createTestPaymentInterface();
+      }
+      window.paymentTester.showTestPanel();
+    }
+
+    async function testPaymentFlow() {
+      const resultsDiv = document.getElementById('payment-results');
+      resultsDiv.innerHTML = 'Testing payment flow...';
+
+      try {
+        const testOrder = {
+          txid: 'TEST_SUCCESS_' + Date.now(),
+          total: 200,
+          items: [{ id: 35, qty: 1 }]
+        };
+
+        const result = await window.paymentTester.testPaymentFlow(testOrder);
+        
+        if (result.success) {
+          resultsDiv.innerHTML = `<span style="color: green;">✓ Payment test successful. Order: ${result.orderId}</span>`;
+        } else {
+          resultsDiv.innerHTML = `<span style="color: red;">✗ Payment test failed: ${result.error}</span>`;
+        }
+      } catch (error) {
+        resultsDiv.innerHTML = `<span style="color: red;">✗ Payment flow test failed: ${error.message}</span>`;
+      }
+    }
+
+    function showErrorLogs() {
+      if (window.logger) {
+        const logs = window.logger.getLogs();
+        const errorLogs = logs.filter(log => log.level === 'error');
+        
+        if (errorLogs.length === 0) {
+          alert('No error logs found.');
+          return;
+        }
+
+        const logWindow = window.open('', '_blank', 'width=800,height=600');
+        logWindow.document.write(`
+          <html>
+            <head><title>Error Logs</title></head>
+            <body style="font-family: monospace; padding: 20px;">
+              <h2>Error Logs (${errorLogs.length} entries)</h2>
+              <pre>${JSON.stringify(errorLogs, null, 2)}</pre>
+            </body>
+          </html>
+        `);
+      }
+    }
+
+    function clearLogs() {
+      if (window.logger) {
+        window.logger.clearLogs();
+        updateErrorCount();
+        alert('Logs cleared successfully.');
+      }
+    }
+
+    function exportLogs() {
+      if (window.logger) {
+        window.logger.exportLogs();
+      }
+    }
+
+    function updateErrorCount() {
+      const errorCountDiv = document.getElementById('error-count');
+      if (window.logger) {
+        const logs = window.logger.getLogs();
+        const errorCount = logs.filter(log => log.level === 'error').length;
+        const warnCount = logs.filter(log => log.level === 'warn').length;
+        
+        errorCountDiv.innerHTML = `
+          <div>Errors: <span style="color: red;">${errorCount}</span></div>
+          <div>Warnings: <span style="color: orange;">${warnCount}</span></div>
+          <div>Total Logs: ${logs.length}</div>
+        `;
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Product - Harvi Creates</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Harvi Creates">
+  <meta name="theme-color" content="#87CEEB">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+  <nav>
+    <ul class="nav-left">
+      <li><a href="index.html"><i class="fas fa-home"></i> Home</a></li>
+      <li><a href="cart.html"><i class="fas fa-shopping-cart"></i> Cart</a></li>
+      <li><a href="about.html"><i class="fas fa-info-circle"></i> About</a></li>
+      <li><a href="order-tracking.html"><i class="fas fa-truck"></i> Track Order</a></li>
+    </ul>
+    <div class="nav-logo"><img src="logo.png" alt="Logo"></div>
+    <ul class="nav-right">
+      <li><a href="login.html"><i class="fas fa-sign-in-alt"></i> Login</a></li>
+      <li><a href="signup.html"><i class="fas fa-user-plus"></i> Sign up</a></li>
+    </ul>
+  </nav>
+
+  <section id="productDetail" class="product-detail"></section>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="auth-guard.js"></script>
+  <script src="products-client.js"></script>
+  <script src="cart-guard.js"></script>
+  <script>
+  async function getProduct() {
+    const params = new URLSearchParams(location.search);
+    const id = params.get('id');
+    
+    if (!id) {
+      document.getElementById('productDetail').innerHTML = '<p>Product not found</p>';
+      return;
+    }
+    
+    const p = await getProductById(id);
+    if (!p) {
+      document.getElementById('productDetail').innerHTML = '<p>Product not found</p>';
+      return;
+    }
+    
+    // Handle both single image and images array
+    const productImage = (p.images && Array.isArray(p.images) && p.images.length > 0) ? p.images[0] : (p.image || 'placeholder.jpg');
+    
+    const el = document.getElementById('productDetail');
+    el.innerHTML = `
+      <div class="product-detail-img"><img src="${productImage}" alt="${p.title}"></div>
+      <div class="product-detail-info">
+        <h2>${p.title}</h2>
+        <p>${p.description}</p>
+        <div class="price">₹${p.price}</div>
+        <p>Shipping: <span id="shippingText">Select shipping on checkout</span></p>
+        <div>
+          <label>Quantity: <input id="qty" type="number" value="1" min="1" style="width:60px;padding:6px;border-radius:6px;border:1px solid #ddd"></label>
+        </div>
+        <br>
+        <button id="addCart">Add to Cart</button>
+      </div>
+    `;
+    document.getElementById('addCart').addEventListener('click', ()=>{
+      const qty = Number(document.getElementById('qty').value || 1);
+      const cart = JSON.parse(localStorage.getItem('hc_cart')||'[]');
+      const existing = cart.find(i=>i.id===p.id);
+      if(existing) existing.qty += qty; else cart.push({id:p.id, title:p.title, price:p.price, image:productImage, qty:qty});
+      localStorage.setItem('hc_cart', JSON.stringify(cart));
+      
+      // Show visual feedback
+      const button = document.getElementById('addCart');
+      const originalText = button.textContent;
+      button.textContent = '✓ Added to Cart!';
+      button.style.background = '#4CAF50';
+      button.disabled = true;
+      
+      setTimeout(() => {
+        button.textContent = originalText;
+        button.style.background = '';
+        button.disabled = false;
+      }, 2000);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if (typeof initializeSupabase === 'function') {
+      initializeSupabase();
+    }
+    const checkSupabase = setInterval(() => {
+      if (window.supabaseService) {
+        clearInterval(checkSupabase);
+        getProduct();
+      }
+    }, 50);
+  });
+  </script>
+</body>
+</html>

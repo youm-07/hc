@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Cart - Harvi Creates</title><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Harvi Creates"><meta name="theme-color" content="#87CEEB">  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"><script src="supabase-config.js"></script><script src="auth-guard.js"></script></head>
+<body>
+  <nav>
+    <ul class="nav-left">
+      <li><a href="index.html"><i class="fas fa-home"></i> Home</a></li>
+      <li><a href="cart.html"><i class="fas fa-shopping-cart"></i> Cart</a></li>
+      <li><a href="about.html"><i class="fas fa-info-circle"></i> About</a></li>
+      <li><a href="order-tracking.html"><i class="fas fa-truck"></i> Track Order</a></li>
+    </ul>
+    <div class="nav-logo"><img src="logo.png" alt="Logo"></div>
+    <ul class="nav-right">
+      <li><a href="login.html"><i class="fas fa-sign-in-alt"></i> Login</a></li>
+      <li><a href="signup.html"><i class="fas fa-user-plus"></i> Sign up</a></li>
+    </ul>
+  </nav>
+  <div class="cart-items" id="cartItems"></div>
+  <div style="max-width:1000px;margin:20px auto;text-align:right;">
+    <button id="checkoutBtn" style="background:linear-gradient(45deg, #87CEEB, #ffffff, #87CEEB);color:#333;padding:12px 18px;border:none;border-radius:8px;cursor:pointer;transition:all 0.3s ease;">Proceed to Checkout</button>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="cart-guard.js"></script>
+  <script src="logger.js"></script>
+  <script src="loading-states.js"></script>
+  <script src="inventory-manager.js"></script>
+  <script src="payment-test.js"></script>
+  <script>
+  // Initialize and render cart
+  document.addEventListener('DOMContentLoaded', function() {
+    renderCart();
+    
+    // Add checkout button event listener after cart is rendered
+    document.getElementById('checkoutBtn').addEventListener('click', () => {
+      // Initialize Supabase if not already done
+      if (typeof initializeSupabase === 'function' && !window.supabaseService) {
+        initializeSupabase();
+      }
+      
+      // Check authentication before proceeding to checkout
+      const checkAuthAndProceed = () => {
+        if (window.supabaseService) {
+          if (window.supabaseService.isLoggedIn()) {
+            location.href = 'checkout.html';
+          } else {
+            // Store the intended destination and redirect to login
+            sessionStorage.setItem('redirect_url', 'checkout.html');
+            location.href = 'login.html';
+          }
+        } else {
+          // Retry after a short delay if Supabase service isn't ready
+          setTimeout(checkAuthAndProceed, 100);
+        }
+      };
+      
+      checkAuthAndProceed();
+    });
+  });
+
+  function renderCart(){
+    const area = document.getElementById('cartItems');
+    const cart = JSON.parse(localStorage.getItem('hc_cart')||'[]');
+    if(!cart.length){ area.innerHTML = '<h2 style="text-align:center;color:#ff6f61">Your Cart is Empty</h2><p style="text-align:center">Add products to your cart.</p>'; return; }
+    area.innerHTML = '';
+    let total = 0;
+    cart.forEach((it, idx)=>{
+      total += it.price * it.qty;
+      const row = document.createElement('div');
+      row.className = 'cart-row';
+      row.innerHTML = `
+        <img src="${it.image}" alt="${it.title}">
+        <div style="flex:1">
+          <strong>${it.title}</strong><br>
+          ₹${it.price} x <input class="qty-input" data-idx="${idx}" type="number" value="${it.qty}" min="1">
+        </div>
+        <div>
+          <button data-idx="${idx}" class="remove-btn" style="background:linear-gradient(45deg, #87CEEB, #ffffff, #87CEEB);color:#333;border:none;padding:8px;border-radius:6px;cursor:pointer;transition:all 0.3s ease;">Remove</button>
+        </div>
+      `;
+      area.appendChild(row);
+    });
+    const summary = document.createElement('div');
+    summary.style.textAlign='right';
+    summary.innerHTML = `<h3>Total: ₹${total}</h3>`;
+    area.appendChild(summary);
+    document.querySelectorAll('.qty-input').forEach(inp=>{
+      inp.addEventListener('change', (e)=>{
+        const i = Number(e.target.dataset.idx);
+        const val = Number(e.target.value);
+        const c = JSON.parse(localStorage.getItem('hc_cart')||'[]');
+        c[i].qty = val;
+        localStorage.setItem('hc_cart', JSON.stringify(c));
+        renderCart();
+      });
+    });
+    document.querySelectorAll('.remove-btn').forEach(b=>{
+      b.addEventListener('click', (e)=>{
+        const i = Number(e.target.dataset.idx);
+        const c = JSON.parse(localStorage.getItem('hc_cart')||'[]');
+        c.splice(i,1);
+        localStorage.setItem('hc_cart', JSON.stringify(c));
+        renderCart();
+      });
+    });
+  }
+  </script>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Track Your Order - Harvi Creates</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .order-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .order-status {
+            background: #87CEEB;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .item-list img {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            margin-right: 15px;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <ul class="nav-left">
+            <li><a href="index.html"><i class="fas fa-home"></i> Home</a></li>
+            <li><a href="#" onclick="goToCart()"><i class="fas fa-shopping-cart"></i> Cart</a></li>
+            <li><a href="about.html"><i class="fas fa-info-circle"></i> About</a></li>
+            <li><a href="order-tracking.html"><i class="fas fa-truck"></i> Track Order</a></li>
+        </ul>
+        <div class="nav-logo"><img src="logo.png" alt="Logo"></div>
+        <ul class="nav-right">
+            <li><a href="login.html">Login</a></li>
+            <li><a href="signup.html">Sign up</a></li>
+        </ul>
+    </nav>
+
+    <div class="form-container">
+        <h2>Track Your Order</h2>
+        <p>Enter the email address you used to place the order.</p>
+        
+        <form id="trackingForm">
+            <input type="email" id="searchEmail" placeholder="Your email address" required>
+            <button type="submit" class="btn" style="width: 100%; margin-top: 10px;">Find My Orders</button>
+        </form>
+        
+        <div id="resultsContainer" style="margin-top: 30px;"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="auth-guard.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof initializeSupabase === 'function') {
+                initializeSupabase();
+            }
+        });
+
+        document.getElementById('trackingForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('searchEmail').value.trim();
+            const container = document.getElementById('resultsContainer');
+            container.innerHTML = '<p>Searching for your orders...</p>';
+
+            if (!email) {
+                container.innerHTML = '<p style="color: red;">Please enter a valid email address.</p>';
+                return;
+            }
+
+            const result = await window.supabaseService.getOrdersByEmail(email);
+
+            if (result.success && result.data.length > 0) {
+                container.innerHTML = '<h3>Your Orders</h3>';
+                result.data.forEach(order => {
+                    const orderCard = document.createElement('div');
+                    orderCard.className = 'order-card';
+
+                    const itemsHtml = order.items ? JSON.parse(order.items).map(item => `
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <img src="${item.image}" alt="${item.title}">
+                            <span>${item.title} (x${item.qty})</span>
+                        </div>
+                    `).join('') : '<p>No items information.</p>';
+
+                    orderCard.innerHTML = `
+                        <div class="order-header">
+                            <div>
+                                <strong>Order ID:</strong> ${order.order_id || order.id}<br>
+                                <small>${new Date(order.created_at).toLocaleDateString()}</small>
+                            </div>
+                            <span class="order-status">${order.status || 'Processing'}</span>
+                        </div>
+                        <div class="item-list">
+                            ${itemsHtml}
+                        </div>
+                        <p style="text-align: right; margin-top: 15px; font-weight: bold;">Total: ₹${order.total_amount}</p>
+                    `;
+                    container.appendChild(orderCard);
+                });
+            } else {
+                container.innerHTML = '<p>No orders found for this email address. Please check for typos or contact us for help.</p>';
+            }
+        });
+    </script>
+</body>
+</html>

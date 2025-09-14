@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Admin - Harvi Creates</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#87CEEB">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+  <nav>
+    <ul class="nav-left">
+      <li><a href="cart.html"><i class="fas fa-shopping-cart"></i> Cart</a></li>
+    </ul>
+    <div class="nav-logo"><img src="logo.png" alt="Logo"></div>
+  </nav>
+  
+    <div style="max-width:1000px;margin:30px auto;padding:20px;">
+    <h2 style="text-align:center;color:#333;margin-bottom:30px;">Admin Dashboard</h2>
+
+    <!-- Admin Key Management -->
+    <div id="keySection" style="background:#fff;padding:20px;border-radius:12px;box-shadow:0 6px 15px rgba(0,0,0,0.1);margin-bottom:20px;">
+      <h3 style="color:#333;margin-bottom:15px;">🔑 Admin Key</h3>
+      <p style="color:#666;font-size:14px;">To add or delete data, please enter your Supabase <code style="background:#eee;padding:2px 4px;border-radius:4px;">service_role</code> key. This key is only stored for your current session.</p>
+      <form id="keyForm" style="display:flex;gap:10px;margin-top:10px;">
+        <input type="password" id="serviceKeyInput" placeholder="Enter your service_role key" required style="flex-grow:1;padding:10px;border:1px solid #ddd;border-radius:6px;">
+        <button type="submit" style="background:linear-gradient(45deg, #87CEEB, #ffffff, #87CEEB);color:#333;padding:10px 15px;border:none;border-radius:8px;cursor:pointer;">Save Key</button>
+      </form>
+      <p id="keyStatus" style="margin-top:10px;font-weight:bold;"></p>
+    </div>
+
+    <!-- Category Management -->
+    <div style="background:#fff;padding:20px;border-radius:12px;box-shadow:0 6px 15px rgba(0,0,0,0.1);margin-bottom:20px;">
+      <h3 style="color:#333;margin-bottom:15px;">🏷️ Category Management</h3>
+      <div style="display:grid; grid-template-columns: 2fr 1fr; gap: 20px;">
+        <div>
+          <h4>Add New Category</h4>
+          <form id="categoryForm" style="display:flex;gap:10px;">
+            <input type="text" id="categoryName" placeholder="New category name" required style="flex-grow:1;padding:10px;border:1px solid #ddd;border-radius:6px;">
+            <button type="submit" style="background:linear-gradient(45deg, #87CEEB, #ffffff, #87CEEB);color:#333;padding:10px 15px;border:none;border-radius:8px;cursor:pointer;">Add Category</button>
+          </form>
+        </div>
+        <div>
+          <h4>Existing Categories</h4>
+          <div id="categoriesContainer" style="max-height:150px;overflow-y:auto;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Product Management -->
+    <div style="background:#fff;padding:20px;border-radius:12px;box-shadow:0 6px 15px rgba(0,0,0,0.1);margin-bottom:20px;">
+      <h3 style="color:#333;margin-bottom:15px;">🛍️ Product Management</h3>
+      <div style="background:#f8f9fc;padding:15px;border-radius:8px;margin-bottom:20px;">
+        <h4>Add New Product</h4>
+        <form id="productForm" style="display:grid;gap:10px;">
+          <input type="text" id="productTitle" placeholder="Product Title" required style="padding:10px;border:1px solid #ddd;border-radius:6px;">
+          <textarea id="productDesc" placeholder="Product Description" required style="padding:10px;border:1px solid #ddd;border-radius:6px;min-height:80px;"></textarea>
+          <input type="number" id="productPrice" placeholder="Price (₹)" required style="padding:10px;border:1px solid #ddd;border-radius:6px;">
+          <select id="productCategory" required style="padding:10px;border:1px solid #ddd;border-radius:6px;">
+            <option value="">Loading categories...</option>
+          </select>
+          <textarea id="productImages" placeholder="Image URLs (one per line)" required style="padding:10px;border:1px solid #ddd;border-radius:6px;min-height:80px;"></textarea>
+          <button type="submit" style="background:linear-gradient(45deg, #87CEEB, #ffffff, #87CEEB);color:#333;padding:12px;border:none;border-radius:8px;cursor:pointer;font-weight:bold;">Add Product</button>
+        </form>
+      </div>
+      <div id="productsContainer"></div>
+    </div>
+
+    <!-- Orders Management -->
+    <div style="background:#fff;padding:20px;border-radius:12px;box-shadow:0 6px 15px rgba(0,0,0,0.1);margin-bottom:20px;">
+      <h3 style="color:#333;margin-bottom:15px;">📋 Orders Management</h3>
+        <script src="supabase-config.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // --- GLOBALLY ACCESSIBLE FUNCTIONS ---
+      window.deleteProduct = async function(productId) {
+        if (confirm('Are you sure you want to delete this product?')) {
+          try {
+            const adminService = await window.supabaseService.asAdmin();
+            if (!adminService) return;
+            const result = await adminService.deleteProduct(productId);
+            if (result.success) {
+              alert('✅ Product deleted successfully!');
+              loadProducts();
+              updateStats();
+            } else {
+              throw new Error(result.error || 'Failed to delete product');
+            }
+          } catch (error) {
+            alert('❌ Error deleting product: ' + error.message);
+          }
+        }
+      };
+
+      window.deleteCategory = async function(categoryId) {
+        if (confirm('Are you sure you want to delete this category?')) {
+          try {
+            const adminService = await window.supabaseService.asAdmin();
+            if (!adminService) return;
+            const result = await adminService.deleteCategory(categoryId);
+            if (result.success) {
+              alert('✅ Category deleted!');
+              loadCategories();
+            } else {
+              throw new Error(result.error || 'Failed to delete category');
+            }
+          } catch (error) {
+            alert('❌ Error deleting category: ' + error.message);
+          }
+        }
+      };
+
+      // --- DATA LOADING FUNCTIONS ---
+      async function loadProducts() {
+        const container = document.getElementById('productsContainer');
+        container.innerHTML = '<p>Loading products...</p>';
+        try {
+          const result = await window.supabaseService.getProducts();
+          const products = result.success ? result.data : [];
+          if (products && products.length > 0) {
+            container.innerHTML = `
+              <h4>Current Products (${products.length})</h4>
+              <div style="display:grid;gap:10px;max-height:400px;overflow-y:auto;">
+                ${products.map(product => `
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:#f8f9fc;border-radius:6px;">
+                    <div>
+                      <strong>${product.title}</strong> - ₹${product.price}
+                      <br><small style="color:#666;">${product.category}</small>
+                    </div>
+                    <button onclick="deleteProduct('${product.id}')" style="background:#ff6f61;color:white;border:none;padding:5px 10px;border-radius:4px;cursor:pointer;">Delete</button>
+                  </div>
+                `).join('')}
+              </div>
+            `;
+          } else {
+            container.innerHTML = '<p>No products found. Add your first product using the form above.</p>';
+          }
+        } catch (error) {
+          container.innerHTML = '<p style="color:#ff6f61;">Error loading products.</p>';
+        }
+      }
+
+      async function loadCategories() {
+        const container = document.getElementById('categoriesContainer');
+        const select = document.getElementById('productCategory');
+        container.innerHTML = '<p>Loading...</p>';
+        select.innerHTML = '<option>Loading...</option>';
+        const result = await window.supabaseService.getCategories();
+        if (result.success && result.data) {
+          const categories = result.data;
+          container.innerHTML = categories.map(cat => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:5px;background:#f8f9fc;border-radius:4px;margin-bottom:5px;">
+              <span>${cat.name}</span>
+              <button onclick="deleteCategory(${cat.id})" style="background:#ff6f61;color:white;border:none;padding:2px 8px;border-radius:4px;cursor:pointer;">X</button>
+            </div>
+          `).join('');
+          select.innerHTML = '<option value="">Select Category</option>';
+          categories.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat.name;
+            option.textContent = cat.name;
+            select.appendChild(option);
+          });
+        } else {
+          container.innerHTML = '<p>Could not load categories.</p>';
+          select.innerHTML = '<option>Could not load</option>';
+        }
+      }
+
+      async function loadOrders() {
+        const container = document.getElementById('ordersContainer');
+        container.innerHTML = '<p>Loading orders...</p>';
+        try {
+          const result = await window.supabaseService.getOrders();
+          const orders = result.success ? result.data : [];
+          if (orders && orders.length > 0) {
+            container.innerHTML = `
+              <h4>Recent Orders (${orders.length})</h4>
+              <div style="max-height: 400px; overflow-y: auto;">
+                ${orders.map(order => `
+                  <div style="padding: 10px; border-bottom: 1px solid #eee;">
+                    <strong>Order ID:</strong> ${order.id}<br>
+                    <strong>Customer:</strong> ${order.name} (${order.email})<br>
+                    <strong>Total:</strong> ₹${order.total_amount}
+                    <small style="display: block; color: #666;">Date: ${new Date(order.created_at).toLocaleString()}</small>
+                  </div>
+                `).join('')}
+              </div>
+            `;
+          } else {
+            container.innerHTML = '<p>No orders found yet.</p>';
+          }
+        } catch (error) {
+          container.innerHTML = '<p style="color:#ff6f61;">Error loading orders.</p>';
+        }
+      }
+
+      async function updateStats() {
+        const container = document.getElementById('statsContainer');
+        container.innerHTML = '<p>Loading stats...</p>';
+        try {
+          const [productResult, orderResult] = await Promise.all([
+            window.supabaseService.getProducts(),
+            window.supabaseService.getOrders()
+          ]);
+          const products = productResult.success ? productResult.data : [];
+          const orders = orderResult.success ? orderResult.data : [];
+          const totalProducts = products.length;
+          const totalOrders = orders.length;
+          const totalRevenue = orders.reduce((sum, order) => sum + (order.total_amount || 0), 0);
+          container.innerHTML = `
+            <div style="text-align:center;padding:15px;background:#f8f9fc;border-radius:8px;">
+              <h4 style="margin:0 0 5px 0;color:#333;">Total Orders</h4>
+              <p style="margin:0;font-size:24px;font-weight:bold;color:#333;">${totalOrders}</p>
+            </div>
+            <div style="text-align:center;padding:15px;background:#f8f9fc;border-radius:8px;">
+              <h4 style="margin:0 0 5px 0;color:#333;">Total Products</h4>
+              <p style="margin:0;font-size:24px;font-weight:bold;color:#333;">${totalProducts}</p>
+            </div>
+            <div style="text-align:center;padding:15px;background:#f8f9fc;border-radius:8px;">
+              <h4 style="margin:0 0 5px 0;color:#333;">Total Revenue</h4>
+              <p style="margin:0;font-size:24px;font-weight:bold;color:#333;">₹${totalRevenue.toFixed(2)}</p>
+            </div>
+            <div style="text-align:center;padding:15px;background:#f8f9fc;border-radius:8px;">
+              <h4 style="margin:0 0 5px 0;color:#333;">Users</h4>
+              <p style="margin:0;font-size:16px;color:#666;">Coming Soon</p>
+            </div>
+          `;
+        } catch (error) {
+          container.innerHTML = '<p style="color:#ff6f61;">Error loading statistics.</p>';
+        }
+      }
+
+      function loadAllData() {
+        loadProducts();
+        loadOrders();
+        loadCategories();
+        updateStats();
+      }
+
+      // --- INITIALIZATION ---
+      if (typeof initializeSupabase === 'function') {
+        initializeSupabase();
+      } else {
+        alert('Critical Error: Supabase configuration is missing.');
+        return;
+      }
+
+      // Attach form listeners
+      document.getElementById('keyForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const key = document.getElementById('serviceKeyInput').value;
+        sessionStorage.setItem('supabaseServiceKey', key);
+        document.getElementById('keyStatus').textContent = '✅ Key saved for this session.';
+        loadAllData();
+      });
+
+      document.getElementById('productForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const images = document.getElementById('productImages').value.split('\n').map(url => url.trim()).filter(url => url);
+        if (images.length === 0) {
+          alert('Please provide at least one image URL.');
+          return;
+        }
+        const productData = {
+          title: document.getElementById('productTitle').value,
+          description: document.getElementById('productDesc').value,
+          price: parseInt(document.getElementById('productPrice').value),
+          category: document.getElementById('productCategory').value,
+          images: images,
+          product_id: 'PROD_' + Date.now()
+        };
+        try {
+          const adminService = await window.supabaseService.asAdmin();
+          if (!adminService) return;
+          const result = await adminService.createProduct(productData);
+          if (result.success) {
+            alert('✅ Product added successfully!');
+            this.reset();
+            loadProducts();
+            updateStats();
+          } else {
+            const errorMessage = result.error ? JSON.stringify(result.error) : 'Failed to save product';
+            throw new Error(errorMessage);
+          }
+        } catch (error) {
+          alert('❌ Error adding product: ' + error.message);
+        }
+      });
+
+      document.getElementById('categoryForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const name = document.getElementById('categoryName').value;
+        if (!name) return;
+        try {
+          const adminService = await window.supabaseService.asAdmin();
+          if (!adminService) return;
+          const result = await adminService.createCategory({ name });
+          if (result.success) {
+            alert('✅ Category added!');
+            this.reset();
+            loadCategories();
+          } else {
+            throw new Error(result.error || 'Failed to create category');
+          }
+        } catch (error) {
+          alert('❌ Error adding category: ' + error.message);
+        }
+      });
+
+      // Check for existing key on load
+      if (sessionStorage.getItem('supabaseServiceKey')) {
+        document.getElementById('keyStatus').textContent = '✅ Key is set for this session.';
+      }
+
+      // Initial data load
+      loadAllData();
+    });
+  </script>

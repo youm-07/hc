@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Harvi Creates - Shop</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Harvi Creates">
+  <meta name="theme-color" content="#87CEEB">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+  <nav>
+    <ul class="nav-left">
+      <li><a href="index.html"><i class="fas fa-home"></i> Home</a></li>
+      <li><a href="cart.html"><i class="fas fa-shopping-cart"></i> Cart</a></li>
+      <li><a href="about.html"><i class="fas fa-info-circle"></i> About</a></li>
+      <li><a href="order-tracking.html"><i class="fas fa-truck"></i> Track Order</a></li>
+    </ul>
+    <div class="nav-logo"><img src="logo.png" alt="Logo"></div>
+    <ul class="nav-right">
+      <li><a href="login.html"><i class="fas fa-sign-in-alt"></i> Login</a></li>
+      <li><a href="signup.html"><i class="fas fa-user-plus"></i> Sign up</a></li>
+    </ul>
+  </nav>
+
+  <div class="category-bar" id="categoryBar">
+    <!-- Categories will be loaded here dynamically -->
+  </div>
+
+  <section class="products" id="productsGrid"></section>
+
+  <div class="footer">
+    <p>Harvi Creates — handcrafted in India</p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="auth-guard.js"></script>
+  <script src="products-client.js"></script>
+  <script src="cart-guard.js"></script>
+  <script src="logger.js"></script>
+  <script src="loading-states.js"></script>
+  <script src="inventory-manager.js"></script>
+  <script src="payment-test.js"></script>
+  <script>
+  async function loadProductsAndRender() {
+    return await window.withLoading(async () => {
+      // 1. Fetch both products and categories at the same time
+      const [productResult, categoryResult] = await Promise.all([
+        window.supabaseService.getProducts(),
+        window.supabaseService.getCategories()
+      ]);
+
+    const products = productResult.success ? productResult.data : [];
+    const categories = categoryResult.success ? categoryResult.data : [];
+    
+    // Store products globally for addToCart function
+    window.currentProducts = products;
+
+    const grid = document.getElementById('productsGrid');
+    const categoryBar = document.getElementById('categoryBar');
+
+    // 2. Dynamically create the category buttons
+    categoryBar.innerHTML = '<button class="active" data-cat="all">All</button>'; // Start with the 'All' button
+    categories.forEach(cat => {
+      const btn = document.createElement('button');
+      btn.dataset.cat = cat.name;
+      btn.textContent = cat.name;
+      categoryBar.appendChild(btn);
+    });
+
+    function render(list) {
+      grid.innerHTML = '';
+      if (!list || list.length === 0) {
+        grid.innerHTML = `
+          <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: #666;">
+            <h3 style="margin-bottom: 15px; color: #333;">No Products Available</h3>
+            <p style="margin-bottom: 20px;">Products will appear here once they are added through the admin panel.</p>
+            <a href="admin.html" style="background: linear-gradient(45deg, #87CEEB, #ffffff, #87CEEB); color: #333; padding: 12px 20px; text-decoration: none; border-radius: 8px; font-weight: bold;">Go to Admin Panel</a>
+          </div>
+        `;
+        return;
+      }
+      list.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'product-card';
+
+        // Handle single or multiple images
+        const images = (p.images && Array.isArray(p.images) && p.images.length > 0) ? p.images : [p.image];
+        const imageSlides = images.map(imgUrl => `<img src="${imgUrl || 'placeholder.jpg'}" alt="${p.title}" loading="lazy">`).join('');
+        const dots = images.map((_, index) => `<span class="dot ${index === 0 ? 'active' : ''}" data-index="${index}"></span>`).join('');
+
+        div.innerHTML = `
+          <div class="image-slider-container">
+            <div class="slider-wrapper">${imageSlides}</div>
+            ${images.length > 1 ? `<button class="slider-btn prev">&#10094;</button><button class="slider-btn next">&#10095;</button>` : ''}
+            <div class="slider-dots">${dots}</div>
+          </div>
+          <h3>${p.title}</h3>
+          <p class="price">₹${p.price}</p>
+          <button onclick="addToCart('${p.id}')">Add to Cart</button>
+        `;
+
+        div.addEventListener('click', (e) => {
+          // Prevent navigation if a slider button or dot is clicked
+          if (e.target.tagName !== 'BUTTON' && !e.target.classList.contains('dot')) {
+            window.location.href = `product.html?id=${p.id}`;
+          }
+        });
+        grid.appendChild(div);
+      });
+    }
+    function setupSliders() {
+      document.querySelectorAll('.product-card').forEach(card => {
+        const sliderWrapper = card.querySelector('.slider-wrapper');
+        const prevBtn = card.querySelector('.slider-btn.prev');
+        const nextBtn = card.querySelector('.slider-btn.next');
+        const dotsContainer = card.querySelector('.slider-dots');
+
+        if (!sliderWrapper || !prevBtn) return; // Not a slider
+
+        let currentIndex = 0;
+        const totalSlides = sliderWrapper.children.length;
+
+        function updateSlider() {
+          sliderWrapper.style.transform = `translateX(-${currentIndex * 100}%)`;
+          card.querySelectorAll('.dot').forEach(dot => {
+            dot.classList.remove('active');
+            if (parseInt(dot.dataset.index) === currentIndex) {
+              dot.classList.add('active');
+            }
+          });
+        }
+
+        nextBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          currentIndex = (currentIndex + 1) % totalSlides;
+          updateSlider();
+        });
+
+        prevBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          currentIndex = (currentIndex - 1 + totalSlides) % totalSlides;
+          updateSlider();
+        });
+
+        dotsContainer.addEventListener('click', (e) => {
+          if (e.target.classList.contains('dot')) {
+            e.stopPropagation();
+            currentIndex = parseInt(e.target.dataset.index);
+            updateSlider();
+          }
+        });
+      });
+    }
+
+    // 3. Initial render of all products
+    render(products);
+    setupSliders();
+    
+    // 4. Set up category filtering for the new dynamic buttons
+    categoryBar.addEventListener('click', (e) => {
+      if (e.target.tagName === 'BUTTON') {
+        // Remove active class from the previously active button
+        const currentActive = categoryBar.querySelector('.active');
+        if (currentActive) {
+          currentActive.classList.remove('active');
+        }
+        // Add active class to the clicked button
+        e.target.classList.add('active');
+
+        const cat = e.target.dataset.cat;
+        const filtered = cat === 'all' ? products : products.filter(p => p.category === cat);
+        render(filtered);
+        setupSliders();
+      }
+    });
+    }, { message: 'Loading products...', id: 'products' });
+  }
+  
+  function viewProduct(id){ window.location.href = 'product.html?id=' + encodeURIComponent(id); }
+
+  // Enhanced addToCart function with inventory management
+  async function addToCart(productId) {
+    const button = document.querySelector(`button[onclick="addToCart('${productId}')"]`);
+    
+    try {
+      const success = await window.addToCartWithInventory(productId, 1);
+      
+      if (success && button) {
+        const originalText = button.textContent;
+        button.textContent = '✓ Added!';
+        button.style.background = '#4CAF50';
+        button.disabled = true;
+        
+        setTimeout(() => {
+          button.textContent = originalText;
+          button.style.background = '';
+          button.disabled = false;
+        }, 2000);
+      }
+    } catch (error) {
+      window.logger?.error('Add to cart failed', { productId, error: error.message });
+      if (button) {
+        button.textContent = 'Error';
+        button.style.background = '#ff6b6b';
+        setTimeout(() => {
+          button.textContent = 'Add to Cart';
+          button.style.background = '';
+        }, 2000);
+      }
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if (typeof initializeSupabase === 'function') {
+      initializeSupabase();
+    }
+    // Ensure supabaseService is available before loading products
+    const checkSupabase = setInterval(() => {
+      if (window.supabaseService) {
+        clearInterval(checkSupabase);
+        loadProductsAndRender();
+      }
+    }, 50);
+  });
+  </script>
+</body>
+</html>
